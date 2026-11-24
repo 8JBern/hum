@@ -58,6 +58,16 @@ export class Player {
       yawDelta: -inp.mouseDX * sens,
       pitchDelta: -inp.mouseDY * sens * (s.invertY ? -1 : 1),
     };
+    const pad = readPad();
+    if (pad) {
+      if (Math.abs(pad.ly) > 0.15) i.forward = -pad.ly;
+      if (Math.abs(pad.lx) > 0.15) i.strafe = pad.lx;
+      if (Math.abs(pad.rx) > 0.12) i.yawDelta -= pad.rx * 0.045 * s.sensitivity;
+      if (Math.abs(pad.ry) > 0.12) i.pitchDelta -= pad.ry * 0.035 * s.sensitivity * (s.invertY ? -1 : 1);
+      if (pad.lt) i.raise = true;
+      if (pad.sprint) i.sprint = true;
+      if (pad.crouch) i.crouch = true;
+    }
     if (v) {
       if (v.forward !== undefined) i.forward = v.forward;
       if (v.strafe !== undefined) i.strafe = v.strafe;
@@ -139,4 +149,42 @@ export class Player {
   get inFocus(): boolean {
     return this.raised && this.focusT > 0.35;
   }
+}
+
+/** Gamepad (standard mapping): left stick move, right stick look, LT raise, RT photo, L3 sprint, B crouch. */
+export interface PadState {
+  lx: number;
+  ly: number;
+  rx: number;
+  ry: number;
+  lt: boolean;
+  rt: boolean;
+  sprint: boolean;
+  crouch: boolean;
+  a: boolean;
+  y: boolean;
+  start: boolean;
+}
+
+export function readPad(): PadState | null {
+  if (typeof navigator === 'undefined' || !navigator.getGamepads) return null;
+  const pads = navigator.getGamepads();
+  for (const p of pads) {
+    if (!p || !p.connected) continue;
+    const b = (i: number): boolean => !!p.buttons[i]?.pressed;
+    return {
+      lx: p.axes[0] ?? 0,
+      ly: p.axes[1] ?? 0,
+      rx: p.axes[2] ?? 0,
+      ry: p.axes[3] ?? 0,
+      lt: b(6),
+      rt: b(7),
+      sprint: b(10),
+      crouch: b(1),
+      a: b(0),
+      y: b(3),
+      start: b(9),
+    };
+  }
+  return null;
 }

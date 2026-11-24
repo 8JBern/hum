@@ -9,7 +9,7 @@ import { dailyNumber, dailySeed, shareString, utcDateString } from './core/daily
 import { ANOMALY_BY_ID, TIER_EVIDENCE, placeAnomaly } from './anomalies/registry.ts';
 import { detect, project, type CamPose } from './gameplay/detect.ts';
 import { Occupant } from './gameplay/occupant.ts';
-import { BATTERY_SECONDS, Player } from './gameplay/player.ts';
+import { BATTERY_SECONDS, Player, readPad } from './gameplay/player.ts';
 import { ReplayBuffer, REPLAY_PLAY_S, type Frame } from './gameplay/replay.ts';
 import { PERKS, UNLOCKS, unlockedIds } from './gameplay/meta.ts';
 import { buildChunkView, type ChunkView } from './render/chunkMesh.ts';
@@ -186,6 +186,7 @@ export class Game {
     audio.volumes = { master: s.master, ambience: s.ambience, effects: s.effects };
     audio.applyVolumes();
     flicker.reduceFlicker = s.reduceFlicker;
+    this.post.blur.enabled = s.motionBlur;
     const q = s.quality === 'auto' ? 'medium' : s.quality;
     this.post.setQuality(q);
     if (s.quality === 'low') this.post.scale = 0.7;
@@ -621,6 +622,14 @@ export class Game {
       /* handled by the mousedown listener */
     }
     if (this.input.hit('KeyE')) this.interact();
+    const pad = readPad();
+    if (pad) {
+      if (pad.rt && !this.padPrev.rt && p.raised) this.snapPhoto();
+      if (pad.a && !this.padPrev.a) this.interact();
+      if (pad.y && !this.padPrev.y && p.raised) p.night = !p.night;
+      if (pad.start && !this.padPrev.start) this.pause();
+      this.padPrev = pad;
+    }
     // Evidence log on Tab (hold).
     const tab = this.input.down('Tab');
     if (tab && !this.logOpen) {
@@ -700,6 +709,7 @@ export class Game {
     });
   }
   raiseOverride: boolean | null = null;
+  private padPrev: { rt: boolean; a: boolean; y: boolean; start: boolean } = { rt: false, a: false, y: false, start: false };
 
   private panOf(x: number, z: number): number {
     const p = this.player;

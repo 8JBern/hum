@@ -50,3 +50,27 @@ jobs:
       - name: Deploy to GitHub Pages
         id: deployment
         uses: actions/deploy-pages@368f82528645a54fb793d4d04e342629a3f51346 # v5
+  smoke:
+    # Deployed smoke test (brief 9.3) runs here because the build container cannot reach github.io.
+    needs: deploy
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+      - name: Set up Node
+        uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7
+        with:
+          node-version: 22
+          cache: 'npm'
+      - name: Install dependencies
+        run: npm ci
+      - name: Install Chromium for Playwright
+        run: npx playwright install --with-deps chromium
+      - name: Wait for the new build to be served
+        run: |
+          for i in $(seq 1 30); do
+            if curl -fsS https://8jbern.github.io/hum/ | grep -q "${GITHUB_SHA::7}"; then echo "fresh build live"; break; fi
+            sleep 10
+          done
+      - name: Deployed smoke test
+        run: npm run test:deployed

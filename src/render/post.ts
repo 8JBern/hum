@@ -4,6 +4,7 @@ import { RenderPass } from 'three/addons/postprocessing/RenderPass.js';
 import { UnrealBloomPass } from 'three/addons/postprocessing/UnrealBloomPass.js';
 import { ShaderPass } from 'three/addons/postprocessing/ShaderPass.js';
 import { OutputPass } from 'three/addons/postprocessing/OutputPass.js';
+import { AfterimagePass } from 'three/addons/postprocessing/AfterimagePass.js';
 import { TAPE_FRAG, TAPE_VERT } from './shaders.ts';
 
 export type Quality = 'low' | 'medium' | 'high' | 'auto';
@@ -11,6 +12,7 @@ export type Quality = 'low' | 'medium' | 'high' | 'auto';
 export class Post {
   composer: EffectComposer;
   bloom: UnrealBloomPass;
+  blur: AfterimagePass;
   tape: ShaderPass;
   render: RenderPass;
   scale = 1;
@@ -26,6 +28,9 @@ export class Post {
     this.composer.addPass(this.render);
     this.bloom = new UnrealBloomPass(new THREE.Vector2(size.x / 2, size.y / 2), 0.4, 0.45, 1.25);
     this.composer.addPass(this.bloom);
+    this.blur = new AfterimagePass(0.55);
+    this.blur.enabled = false;
+    this.composer.addPass(this.blur);
     this.tape = new ShaderPass(
       new THREE.ShaderMaterial({
         vertexShader: TAPE_VERT,
