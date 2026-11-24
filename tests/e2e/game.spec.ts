@@ -98,9 +98,9 @@ test('2 network: every request is same-origin', async ({ page }) => {
 test('intro screenshot', async ({ page }) => {
   await boot(page);
   await H(page, 'beginIntro');
-  await H(page, 'step', 60 * 6);
+  await H(page, 'step', 60 * 3);
   await page.screenshot({ path: `${SHOTS}/02-intro.png` });
-  await H(page, 'step', 60 * 6);
+  await H(page, 'step', 60 * 9);
   expect(await H(page, 'mode')).toBe('intro');
   await H(page, 'step', 60 * 6);
   expect(await H(page, 'mode')).toBe('play');
@@ -199,6 +199,56 @@ test('5 death: replay, summary, restart under 2 seconds', async ({ page }) => {
   expect(await H(page, 'mode')).toBe('play');
   // Zero simulated frames pass between pressing R and control returning; real time is well under 2 s.
   expect(elapsed).toBeLessThan(2000);
+  expect(b.errors).toEqual([]);
+});
+
+test('P2-01 your last tape: a lost camcorder plays the previous death in its own world', async ({ page }) => {
+  const b = await boot(page);
+  await H(page, 'startRun', { seed: 91, noOccupant: true });
+  await H(page, 'setInput', { forward: 1, yawRate: 0.4 });
+  await H(page, 'step', 240);
+  await H(page, 'setInput', null);
+  await H(page, 'killPlayer');
+  await H(page, 'step', 80);
+  await H(page, 'skip');
+  expect(await H(page, 'mode')).toBe('summary');
+  await H(page, 'startRun', { seed: 4242, noOccupant: true });
+  const s = await H<State & { oldTape: { x: number; z: number } | null }>(page, 'getState');
+  expect(s.oldTape).not.toBeNull();
+  await H(page, 'teleport', s.oldTape!.x + 0.5, s.oldTape!.z);
+  await H(page, 'interact');
+  const s2 = await H<State & { replayLabel: string }>(page, 'getState');
+  expect(s2.mode).toBe('replay');
+  expect(s2.replayLabel).toBe('YOUR LAST TAPE');
+  await H(page, 'step', 200);
+  await page.screenshot({ path: `${SHOTS}/12-last-tape.png` });
+  await H(page, 'step', 600);
+  expect(await H(page, 'mode')).toBe('play');
+  const s3 = await H<State & { oldTape: { taken: boolean } | null }>(page, 'getState');
+  expect(s3.oldTape!.taken).toBe(true);
+  expect(b.errors).toEqual([]);
+});
+
+test('P2-07 touch: first touch shows the controls and the left stick moves the player', async ({ page }) => {
+  const b = await boot(page);
+  await H(page, 'startRun', { seed: 1234, noOccupant: true });
+  const s0 = await H<State>(page, 'getState');
+  const fire = (type: string, x: number, y: number): Promise<void> =>
+    page.evaluate(
+      ([type, x, y]) => {
+        const el = document.querySelector('canvas')!;
+        const t = new Touch({ identifier: 1, target: el, clientX: x as number, clientY: y as number });
+        el.dispatchEvent(new TouchEvent(type as string, { touches: type === 'touchend' ? [] : [t], changedTouches: [t], bubbles: true, cancelable: true }));
+      },
+      [type, x, y] as const,
+    );
+  await fire('touchstart', 200, 400);
+  await fire('touchmove', 200, 340);
+  await H(page, 'step', 60);
+  await expect(page.locator('#touch [data-t=raise]')).toBeVisible();
+  const s1 = await H<State>(page, 'getState');
+  expect(Math.hypot(s1.player.x - s0.player.x, s1.player.z - s0.player.z)).toBeGreaterThan(0.5);
+  await fire('touchend', 200, 340);
   expect(b.errors).toEqual([]);
 });
 
@@ -303,4 +353,37 @@ test('archive screenshot', async ({ page }) => {
   await page.locator('#archive [data-lore=lore1]').click();
   await page.waitForTimeout(1500);
   await page.screenshot({ path: `${SHOTS}/11-archive.png` });
+});
+
+test('tape export: Save tape downloads a WebM of the replay', async ({ page }) => {
+  await boot(page);
+  await H(page, 'startRun', { seed: 77 });
+  await H(page, 'setInput', { forward: 1, yawRate: 0.3 });
+  await H(page, 'step', 240);
+  await H(page, 'setInput', null);
+  await H(page, 'killPlayer');
+  await H(page, 'step', 80);
+  expect(await H(page, 'mode')).toBe('replay');
+  const download = page.waitForEvent('download', { timeout: 120_000 });
+  await page.locator('#replay button[data-a=tape]').click();
+  for (let i = 0; i < 40; i++) {
+    await H(page, 'step', 20);
+    await page.waitForTimeout(50);
+  }
+  const d = await download;
+  expect(d.suggestedFilename()).toMatch(/\.webm$/);
+  const path = await d.path();
+  const { statSync } = await import('node:fs');
+  expect(statSync(path!).size).toBeGreaterThan(1000);
+});
+
+test('rearrange: furniture around the player changes after the tab was hidden', async ({ page }) => {
+  await boot(page);
+  await H(page, 'startRun', { seed: 1234, noOccupant: true });
+  const before = await H<State>(page, 'getState');
+  const ok = await H<boolean>(page, 'rearrange');
+  const after = await H<State>(page, 'getState');
+  expect(ok).toBe(true);
+  expect(after.mode).toBe('play');
+  expect(JSON.stringify(after.anomalies.map((a) => a.uid))).not.toBe(JSON.stringify(before.anomalies.map((a) => a.uid)));
 });

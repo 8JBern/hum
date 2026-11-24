@@ -49,6 +49,21 @@ function batteryGeometry(): THREE.BufferGeometry {
   return batteryGeo;
 }
 
+let camcorderGeo: THREE.BufferGeometry | null = null;
+/** The lost camcorder from a previous run, lying on its side. */
+function camcorderGeometry(): THREE.BufferGeometry {
+  if (!camcorderGeo) {
+    const b = new GeoBuilder();
+    b.box(-0.16, 0, -0.06, 0.12, 0.12, 0.06, lin(0x26241f));
+    b.box(0.12, 0.02, -0.045, 0.2, 0.1, 0.045, lin(0x121212));
+    b.box(0.2, 0.035, -0.03, 0.205, 0.085, 0.03, lin(0x3a4a58), 0.4);
+    b.box(-0.1, 0.12, -0.03, 0.04, 0.15, 0.03, lin(0x1a1a1a));
+    b.box(-0.155, 0.08, 0.06, -0.135, 0.1, 0.062, lin(0xd02020), 2.5);
+    camcorderGeo = b.build();
+  }
+  return camcorderGeo;
+}
+
 export function buildChunkView(wc: WorldChunk, mats: MaterialSet, seed: number, level: number): ChunkView {
   const ceil = wc.ceil;
   const h = WALL_T / 2;
@@ -308,7 +323,7 @@ export function buildChunkView(wc: WorldChunk, mats: MaterialSet, seed: number, 
   for (const m of dynGroup) group.add(m);
   const pickups = new Map<string, THREE.Mesh>();
   for (const p of wc.pickups) {
-    const m = new THREE.Mesh(batteryGeometry(), mats.props);
+    const m = new THREE.Mesh(p.kind === 'tape' ? camcorderGeometry() : batteryGeometry(), mats.props);
     m.position.set(p.x, p.y, p.z);
     m.rotation.y = (p.x * 3.1 + p.z) % 6.28;
     pickups.set(p.id, m);

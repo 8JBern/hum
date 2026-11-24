@@ -10,6 +10,8 @@ const S = CHUNK_SIZE;
 
 export class World {
   readonly chunks = new Map<string, WorldChunk>();
+  /** Furnishing variant per chunk: bumped when the office rearranges itself while you look away. */
+  readonly variants = new Map<string, number>();
   constructor(
     readonly seed: number,
     readonly level: number,
@@ -24,7 +26,7 @@ export class World {
     const k = this.key(cx, cz);
     let c = this.chunks.get(k);
     if (!c) {
-      c = buildWorldChunk(this.seed, this.level, cx, cz);
+      c = buildWorldChunk(this.seed, this.level, cx, cz, this.variants.get(k) ?? 0);
       this.chunks.set(k, c);
     }
     return c;

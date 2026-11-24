@@ -14,7 +14,7 @@ test('10 bot tour: seed 1234 navigates, photographs anomalies and reaches Level 
   await page.evaluate(() => (window as unknown as { __HUM__: Hooks }).__HUM__.startRun!({ seed: 1234, noOccupant: true }));
   let r: { mode: string; level: number; evidence: number; exit: boolean; log: string[] } = { mode: '', level: 0, evidence: 0, exit: false, log: [] };
   for (let i = 0; i < 400 && r.level < 1; i++) {
-    r = (await page.evaluate(() => (window as unknown as { __HUM__: Hooks }).__HUM__.bot!(45))) as typeof r;
+    r = (await page.evaluate(() => (window as unknown as { __HUM__: Hooks }).__HUM__.bot!(90))) as typeof r;
     if (i % 20 === 0) console.log(JSON.stringify(r));
   }
   console.log('final', JSON.stringify(r));

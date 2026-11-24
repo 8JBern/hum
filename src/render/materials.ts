@@ -73,8 +73,8 @@ export const BIOMES: Record<number, Biome> = {
   },
   9: {
     name: 'Office',
-    panel: new THREE.Color(0.9, 0.95, 1.0),
-    ambient: new THREE.Color(0.06, 0.065, 0.075),
+    panel: new THREE.Color(0.62, 0.68, 0.76),
+    ambient: new THREE.Color(0.035, 0.04, 0.05),
     fog: new THREE.Color(0.03, 0.035, 0.045),
     fogDensity: 0.03,
     caustic: 0,

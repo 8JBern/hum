@@ -10,8 +10,12 @@ export class Input {
   virtual: Partial<{ forward: number; strafe: number; sprint: boolean; crouch: boolean; raise: boolean; yawRate: number }> | null = null;
   onUnlock: () => void = () => {};
   onAnyKey: (code: string) => void = () => {};
+  /** Touch stick, camcorder toggle and button actions (P2-07). */
+  touchMove: { forward: number; strafe: number } | null = null;
+  touchRaise = false;
+  onTouchAction: (a: 'photo' | 'pause') => void = () => {};
 
-  constructor(private readonly el: HTMLElement) {
+  constructor(readonly el: HTMLElement) {
     window.addEventListener('keydown', (e) => {
       if (e.code === 'Tab' || e.code === 'Space' || e.code.startsWith('Arrow')) e.preventDefault();
       if (!e.repeat) this.pressed.add(e.code);

@@ -169,7 +169,7 @@ export function pushDecal(wc: WorldChunk, d: Decal): void {
 }
 
 /** Build the furnished world chunk. */
-export function buildWorldChunk(seed: number, level: number, cx: number, cz: number): WorldChunk {
+export function buildWorldChunk(seed: number, level: number, cx: number, cz: number, variant = 0): WorldChunk {
   const base = generateChunk(seed, level, cx, cz);
   const wc: WorldChunk = {
     ...base,
@@ -189,7 +189,7 @@ export function buildWorldChunk(seed: number, level: number, cx: number, cz: num
     silent: [],
     tallDoors: [],
   };
-  const rng = Rng.from(seed, level, cx, cz, SALT_FURNISH);
+  const rng = Rng.from(seed, level, cx, cz, SALT_FURNISH, variant);
   const ctx: FurnishCtx = { wc, rng, reserved: new Uint8Array(S * S), used: new Uint8Array(S * S) };
   reserveOpenings(ctx);
   if (level === 0) addPartitions(ctx);
@@ -227,7 +227,7 @@ export function buildWorldChunk(seed: number, level: number, cx: number, cz: num
     }
   }
 
-  applyAnomalies(ctx, seed, level, cx, cz, spawnRoom);
+  applyAnomalies(ctx, seed, level, cx, cz, spawnRoom, variant);
   return wc;
 }
 

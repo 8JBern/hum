@@ -341,7 +341,11 @@ export const ANOMALY_TYPES: AnomalyType[] = [
       if (!doors.length) return null;
       const d = a.rng.pick(doors);
       a.wc.tallDoors.push(d.key);
-      return { x: d.x, y: 2.3, z: d.z, r: 0.7 };
+      // Detection volume sits just inside the room, so the lintel line never occludes it.
+      const [rx, rz] = centre(a);
+      const ox = d.key.startsWith('v') ? Math.sign(rx - d.x) * 0.3 : 0;
+      const oz = d.key.startsWith('h') ? Math.sign(rz - d.z) * 0.3 : 0;
+      return { x: d.x + ox, y: 2.25, z: d.z + oz, r: 0.7 };
     },
   },
   {
@@ -618,12 +622,12 @@ export function placeAnomaly(f: FurnishCtx, room: Room, type: AnomalyType, uid: 
   return inst;
 }
 
-export function applyAnomalies(f: FurnishCtx, seed: number, level: number, cx: number, cz: number, spawnRoom: Room | null): void {
-  const rng = Rng.from(seed, level, cx, cz, SALT);
+export function applyAnomalies(f: FurnishCtx, seed: number, level: number, cx: number, cz: number, spawnRoom: Room | null, variant = 0): void {
+  const rng = Rng.from(seed, level, cx, cz, SALT, variant);
   const wc = f.wc;
   const usedRooms = new Set<number>();
   let n = 0;
-  const uid = (): string => `${level}:${cx}:${cz}:${n++}`;
+  const uid = (): string => `${level}:${cx}:${cz}:${variant}:${n++}`;
   if (spawnRoom && level === 0) {
     // Onboarding: one obvious tier-1 anomaly in view of the spawn point.
     const sp = wc.spawn!;

@@ -101,3 +101,17 @@ describe('anomaly registry (brief 9.1 #5)', () => {
     });
   }
 });
+
+describe('rearranging while the tab is hidden (P2-02)', () => {
+  it('a new variant keeps walls identical but changes furnishing', () => {
+    let differs = 0;
+    for (const s of SEEDS.slice(0, 20)) {
+      const a = buildWorldChunk(s, 0, 1, 0, 0);
+      const b = buildWorldChunk(s, 0, 1, 0, 1);
+      expect(Array.from(b.vWalls.map((v) => (v === 3 ? 0 : v)))).toEqual(Array.from(a.vWalls.map((v) => (v === 3 ? 0 : v))));
+      expect(Array.from(b.hWalls.map((v) => (v === 3 ? 0 : v)))).toEqual(Array.from(a.hWalls.map((v) => (v === 3 ? 0 : v))));
+      if (JSON.stringify(a.props) !== JSON.stringify(b.props)) differs++;
+    }
+    expect(differs).toBeGreaterThan(15);
+  });
+});

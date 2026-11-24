@@ -68,6 +68,11 @@ export class Player {
       if (pad.sprint) i.sprint = true;
       if (pad.crouch) i.crouch = true;
     }
+    if (inp.touchMove) {
+      i.forward = inp.touchMove.forward;
+      i.strafe = inp.touchMove.strafe;
+    }
+    if (inp.touchRaise) i.raise = true;
     if (v) {
       if (v.forward !== undefined) i.forward = v.forward;
       if (v.strafe !== undefined) i.strafe = v.strafe;

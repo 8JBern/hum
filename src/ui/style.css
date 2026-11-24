@@ -26,6 +26,7 @@ body {
   width: 100vw !important;
   height: 100vh !important;
   display: block;
+  touch-action: none;
 }
 .ui {
   position: fixed;
@@ -500,4 +501,72 @@ button:disabled {
   #title {
     padding: 0 16px 8vh 16px;
   }
+}
+/* Touch controls (P2-07): hidden until the first touch, and only while playing. */
+#touch {
+  display: none;
+}
+body.touch[data-mode='play'] #touch {
+  display: block;
+}
+#touch .stick {
+  position: fixed;
+  width: 120px;
+  height: 120px;
+  border: 2px solid rgba(232, 224, 200, 0.35);
+  border-radius: 50%;
+  pointer-events: none;
+  opacity: 0;
+  z-index: 30;
+}
+#touch .stick.on {
+  opacity: 1;
+}
+#touch .knob {
+  position: absolute;
+  left: 40px;
+  top: 40px;
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  background: rgba(232, 224, 200, 0.35);
+}
+#touch button {
+  position: fixed;
+  z-index: 30;
+  width: 64px;
+  height: 64px;
+  border-radius: 50%;
+  border: 2px solid rgba(232, 224, 200, 0.45);
+  background: rgba(10, 9, 6, 0.45);
+  color: #e8e0c8;
+  font: 600 13px/1 monospace;
+  touch-action: none;
+}
+#touch button.on {
+  background: rgba(200, 40, 30, 0.55);
+}
+#touch [data-t='raise'] {
+  right: 24px;
+  bottom: 110px;
+}
+#touch [data-t='photo'] {
+  right: 100px;
+  bottom: 40px;
+}
+#touch [data-t='use'] {
+  right: 24px;
+  bottom: 30px;
+}
+#touch [data-t='night'] {
+  right: 100px;
+  bottom: 124px;
+  width: 48px;
+  height: 48px;
+}
+#touch [data-t='pause'] {
+  right: 18px;
+  top: 18px;
+  width: 44px;
+  height: 44px;
 }

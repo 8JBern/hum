@@ -211,7 +211,7 @@ export function paintTexture(): THREE.CanvasTexture {
   const W = 256;
   const [c, ctx] = canvas(W, W);
   const rng = Rng.from(15);
-  ctx.fillStyle = '#d9dbd6';
+  ctx.fillStyle = '#a9aca8';
   ctx.fillRect(0, 0, W, W);
   blotches(ctx, W, W, 8, 'rgba(150,150,140,0.06)', 20, 70, rng);
   noise(ctx, W, W, 10, rng);

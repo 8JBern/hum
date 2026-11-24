@@ -3,6 +3,7 @@ import * as THREE from 'three';
 import { audio } from './audio/engine.ts';
 import { flicker } from './core/flicker.ts';
 import { Input } from './core/input.ts';
+import { installTouch } from './core/touch.ts';
 import { Rng, hashString, normaliseSeed } from './core/rng.ts';
 import { DEFAULT_SETTINGS, loadSave, writeSave, type SaveData, type Settings } from './core/save.ts';
 import { dailyNumber, dailySeed, shareString, utcDateString } from './core/daily.ts';
@@ -35,6 +36,17 @@ interface PhotoRec {
   ok: boolean;
 }
 
+/** A previous run's death tape, waiting in a room of this run as a lost camcorder. */
+interface OldTape {
+  seed: number;
+  level: number;
+  at: number;
+  frames: Frame[];
+  key: string;
+  x: number;
+  z: number;
+}
+
 interface RunState {
   seed: number;
   daily: boolean;
@@ -60,6 +72,7 @@ interface RunState {
   photoCooldown: number;
   deathAt: Date | null;
   noteShown: boolean;
+  oldTape: OldTape | null;
 }
 
 export interface StartOptions {
@@ -115,6 +128,8 @@ export class Game {
   private frameTimes: number[] = [];
   private recorder: { rec: MediaRecorder; canvas: HTMLCanvasElement; ctx: CanvasRenderingContext2D; chunks: Blob[] } | null = null;
   private lastTapeFrames: Frame[] = [];
+  /** Temporary scene for playing an old tape found in the world (P2-01). */
+  private tapeView: { scene: THREE.Scene; world: World; views: ChunkView[]; level: number; seed: number; at: number } | null = null;
   private noteMesh: THREE.Mesh | null = null;
   private hiddenAt = 0;
   hiddenFor = 0;
@@ -166,12 +181,19 @@ export class Game {
         if (this.mode === 'play' && !this.testMode) this.pause();
       } else if (this.hiddenAt && performance.now() - this.hiddenAt > 5000) {
         this.hiddenFor = (performance.now() - this.hiddenAt) / 1000;
+        this.rearrange();
       }
     });
     this.renderer.domElement.addEventListener('click', () => {
       audio.unlock();
       if (this.mode === 'play' && !this.input.locked && !this.testMode) this.input.lock();
     });
+    installTouch(this.input, container);
+    this.input.onTouchAction = (a) => {
+      audio.unlock();
+      if (a === 'photo' && this.mode === 'play' && this.player.raised) this.snapPhoto();
+      if (a === 'pause' && this.mode === 'play') this.pause();
+    };
     this.renderer.domElement.addEventListener('mousedown', (e) => {
       if (e.button === 0 && this.mode === 'play' && this.player.raised) this.snapPhoto();
     });
@@ -322,6 +344,7 @@ export class Game {
       photoCooldown: 0,
       deathAt: null,
       noteShown: false,
+      oldTape: this.parseTape(),
     };
     this.enterLevel(this.run.level, o.occupantDelay);
     this.mode = 'play';
@@ -360,7 +383,100 @@ export class Game {
     p.wading = level === 1;
     this.occupant = new Occupant(this.world, Rng.from(run.seed, level, 7), occupantDelay ?? (level === 0 ? 55 : 25));
     this.replayBuf.clear();
+    if (level === 0 && run.oldTape) this.placeOldTape(run.oldTape, Rng.from(run.seed, 77));
     this.stream(true);
+  }
+
+  private parseTape(): OldTape | null {
+    const raw = this.save.lastTape;
+    if (!raw || raw[0] !== '{') return null;
+    try {
+      const o = JSON.parse(raw) as { seed: number; level: number; at: number; f: string };
+      const frames = ReplayBuffer.decode(o.f);
+      if (frames.length < 10 || !Number.isFinite(o.seed)) return null;
+      return { seed: o.seed, level: o.level === 1 ? 1 : 0, at: Number(o.at) || 0, frames, key: '', x: 0, z: 0 };
+    } catch {
+      return null;
+    }
+  }
+
+  /** Put the lost camcorder on the floor of a reachable room in a neighbouring chunk. */
+  private placeOldTape(t: OldTape, rng: Rng): void {
+    const world = this.world!;
+    const p = this.player;
+    const chunks: [number, number][] = rng.shuffle([
+      [1, 0],
+      [0, 1],
+      [-1, 0],
+      [0, -1],
+    ]);
+    for (const [cx, cz] of chunks) {
+      for (let k = 0; k < 24; k++) {
+        const gx = cx * 16 + rng.int(1, 14);
+        const gz = cz * 16 + rng.int(1, 14);
+        const x = gx * CELL + CELL / 2;
+        const z = gz * CELL + CELL / 2;
+        const [qx, qz] = world.collide(x, z, 0.35);
+        if (Math.hypot(qx - x, qz - z) > 1e-3) continue;
+        const path = world.path(p.x, p.z, x, z, 6000);
+        if (!path || path.length < 8) continue;
+        t.key = world.key(cx, cz);
+        t.x = x;
+        t.z = z;
+        return;
+      }
+    }
+    t.key = '';
+  }
+
+  private playOldTape(): void {
+    const t = this.run?.oldTape;
+    if (!t || !t.frames.length) return;
+    const world = new World(t.seed, t.level);
+    const scene = new THREE.Scene();
+    scene.background = this.scene.background;
+    const last = t.frames[t.frames.length - 1]!;
+    const lcx = Math.floor(last.px / CHUNK_M);
+    const lcz = Math.floor(last.pz / CHUNK_M);
+    const views: ChunkView[] = [];
+    for (let dz = -1; dz <= 1; dz++) {
+      for (let dx = -1; dx <= 1; dx++) {
+        const v = buildChunkView(world.chunk(lcx + dx, lcz + dz), materialsFor(t.level), t.seed, t.level);
+        views.push(v);
+        scene.add(v.group);
+      }
+    }
+    scene.add(this.standIn, this.occMesh);
+    this.tapeView = { scene, world, views, level: t.level, seed: t.seed, at: t.at };
+    this.replayFrames = t.frames;
+    this.replayT = 0;
+    this.replayLabel = 'YOUR LAST TAPE';
+    this.afterReplay = () => this.closeOldTape();
+    this.mode = 'replay';
+    this.modeT = 0;
+    this.placeCctv();
+    this.ui.hudOn(false);
+    this.ui.replay('YOUR LAST TAPE', { skip: () => this.endReplay(), tape: null });
+    this.ui.show('replay');
+    audio.replayHiss(true);
+  }
+
+  private closeOldTape(): void {
+    const tv = this.tapeView;
+    if (!tv) return;
+    for (const v of tv.views) {
+      tv.scene.remove(v.group);
+      v.dispose();
+    }
+    this.scene.add(this.standIn, this.occMesh);
+    this.standIn.visible = false;
+    this.tapeView = null;
+    this.mode = 'play';
+    this.modeT = 0;
+    this.ui.show(null);
+    this.ui.hudOn(true);
+    audio.resumeHum();
+    this.ui.toast('THE TAPE ENDS. YOU DO NOT REMEMBER RECORDING IT.', 4);
   }
 
   private disposeWorld(): void {
@@ -423,6 +539,8 @@ export class Game {
     const pcz = Math.floor(this.player.z / CHUNK_M);
     if (Math.max(Math.abs(cx - pcx), Math.abs(cz - pcz)) > 1) return;
     const wc = this.world.chunk(cx, cz);
+    const ot = this.run.oldTape;
+    if (ot && ot.key === k && !this.run.taken.has('tape') && !wc.pickups.some((q) => q.id === 'tape')) wc.pickups.push({ id: 'tape', kind: 'tape', x: ot.x, y: 0.06, z: ot.z });
     const view = buildChunkView(wc, materialsFor(this.run.level), this.run.seed, this.run.level);
     for (const id of this.run.taken) {
       const m = view.pickups.get(id);
@@ -443,7 +561,7 @@ export class Game {
       this.finishIntro();
       return;
     }
-    if ((this.mode === 'summary' || this.mode === 'replay') && code === 'KeyR') {
+    if ((this.mode === 'summary' || (this.mode === 'replay' && !this.tapeView)) && code === 'KeyR') {
       this.stopRecording(false);
       this.startRun({ ...(this.run ? { daily: this.run.daily } : {}), skipIntro: true });
       return;
@@ -559,6 +677,7 @@ export class Game {
       case 'replay':
         this.replayT += DT;
         if (this.recorder && this.replayT > this.replayDuration()) this.stopRecording(true);
+        else if (this.tapeView && this.replayT > this.replayDuration() + 0.8) this.endReplay();
         else if (this.replayT > this.replayDuration() + 1) this.replayT = 0;
         break;
       case 'transition':
@@ -761,6 +880,11 @@ export class Game {
     run.taken.add(id);
     v.group.remove(m);
     v.pickups.delete(id);
+    if (id === 'tape') {
+      audio.pickup();
+      this.playOldTape();
+      return;
+    }
     this.player.battery = Math.min(1, this.player.battery + 0.35);
     audio.pickup();
     this.ui.toast('BATTERY  +35%');
@@ -957,7 +1081,9 @@ export class Game {
     this.ui.replay(label, { skip: () => this.endReplay(), tape: this.tapeSupported() ? () => this.saveTape() : null });
     this.ui.show('replay');
     audio.replayHiss(true);
-    if (this.run) this.save.lastTape = ReplayBuffer.encode(this.replayFrames);
+    if (this.run && label === 'INCIDENT') {
+      this.save.lastTape = JSON.stringify({ seed: this.run.seed, level: this.run.level, at: this.run.deathAt?.getTime() ?? this.now(), f: ReplayBuffer.encode(this.replayFrames) });
+    }
   }
 
   private endReplay(): void {
@@ -973,11 +1099,11 @@ export class Game {
   private placeCctv(): void {
     const f = this.replayFrames;
     const last = f[f.length - 1];
-    if (!last || !this.world) {
+    const world = this.tapeView?.world ?? this.world;
+    if (!last || !world) {
       this.cctv.position.set(this.player.x, 2.4, this.player.z);
       return;
     }
-    const world = this.world;
     const ceil = world.chunk(Math.floor(last.px / CHUNK_M), Math.floor(last.pz / CHUNK_M)).ceil;
     let best: [number, number] | null = null;
     let bestD = 0;
@@ -1147,6 +1273,34 @@ export class Game {
   }
 
   // ---------- Misc ----------
+  /**
+   * It moves when you look away: after the tab was hidden for more than 5 seconds, the furniture and
+   * anomalies in the chunks around the player's own chunk are rearranged. Walls and doorways never change,
+   * so connectivity is preserved, and nothing changes if the Occupant is close (never unfair).
+   */
+  rearrange(): boolean {
+    const run = this.run;
+    const world = this.world;
+    if (!run || !world || (this.mode !== 'play' && this.mode !== 'pause')) return false;
+    if (this.occupant?.active && this.occupant.dist < 14) return false;
+    const pcx = Math.floor(this.player.x / CHUNK_M);
+    const pcz = Math.floor(this.player.z / CHUNK_M);
+    let changed = 0;
+    for (const [k, v] of [...this.views]) {
+      const wc = world.chunks.get(k);
+      if (!wc || (wc.cx === pcx && wc.cz === pcz)) continue;
+      world.variants.set(k, (world.variants.get(k) ?? 0) + 1);
+      for (const a of wc.anomalies) audio.stopLoop(a.uid);
+      world.chunks.delete(k);
+      this.scene.remove(v.group);
+      v.dispose();
+      this.views.delete(k);
+      changed++;
+    }
+    this.stream(true);
+    return changed > 0;
+  }
+
   private placeNote(): void {
     const run = this.run!;
     const world = this.world!;
@@ -1182,6 +1336,7 @@ export class Game {
 
   // ---------- Rendering ----------
   private draw(): void {
+    if (document.body.dataset.mode !== this.mode) document.body.dataset.mode = this.mode;
     const r = this.renderer;
     r.info.reset();
     const tape = this.post;
@@ -1212,7 +1367,11 @@ export class Game {
         this.ui.hudUpdate({ ...this.hudState(), raised: true });
       }
     } else if (this.run) {
-      applyBiome(this.run.level, this.world?.ceil ?? 2.7, this.run.seed);
+      const tv = this.tapeView;
+      if (tv && this.mode === 'replay') {
+        scene = tv.scene;
+        applyBiome(tv.level, tv.world.ceil, tv.seed);
+      } else applyBiome(this.run.level, this.world?.ceil ?? 2.7, this.run.seed);
       if (this.mode === 'replay') {
         cam = this.cctv;
         this.drawReplay();
@@ -1278,7 +1437,7 @@ export class Game {
     if (!run || this.mode !== 'play') return '';
     const p = this.player;
     if (run.exit && Math.hypot(run.exit.x - p.x, run.exit.z - p.z) < 2.0) return run.level === 0 ? 'E  GO THROUGH' : 'E  GO HOME';
-    for (const v of this.views.values()) for (const m of v.pickups.values()) if (Math.hypot(m.position.x - p.x, m.position.z - p.z) < 1.6) return 'E  TAKE BATTERY';
+    for (const v of this.views.values()) for (const [id, m] of v.pickups) if (Math.hypot(m.position.x - p.x, m.position.z - p.z) < 1.6) return id === 'tape' ? 'E  PICK UP THE CAMCORDER' : 'E  TAKE BATTERY';
     return '';
   }
 
@@ -1385,7 +1544,7 @@ export class Game {
     const q0 = this.cctv.quaternion.clone();
     this.cctv.lookAt(target);
     this.cctv.quaternion.slerpQuaternions(q0, this.cctv.quaternion, 0.08);
-    const when = new Date((this.run?.deathAt?.getTime() ?? this.now()) - (this.replayDuration() - t) * 1000);
+    const when = new Date((this.tapeView?.at || this.run?.deathAt?.getTime() || this.now()) - (this.replayDuration() - t) * 1000);
     const mon = when.toLocaleString('en-AU', { month: 'short' }).toUpperCase();
     const stamp = `${mon} ${String(when.getDate()).padStart(2, '0')} ${when.getFullYear()}  ${when.toLocaleTimeString('en-AU', { hour12: false })}`;
     this.ui.replayStamp(stamp);
@@ -1556,6 +1715,9 @@ export class Game {
       errors() {
         return g.errors;
       },
+      rearrange() {
+        return g.rearrange();
+      },
       bot(frames: number) {
         const bot = (g.bot ??= new Bot());
         for (let i = 0; i < frames; i++) {
@@ -1604,6 +1766,8 @@ export class Game {
       escaped: run?.escaped ?? false,
       banked: this.save.banked,
       replayFrames: this.replayFrames.length,
+      replayLabel: this.mode === 'replay' ? this.replayLabel : '',
+      oldTape: run?.oldTape && run.oldTape.key ? { x: run.oldTape.x, z: run.oldTape.z, taken: run.taken.has('tape') } : null,
     };
   }
 

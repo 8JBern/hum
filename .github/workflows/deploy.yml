@@ -34,6 +34,13 @@ jobs:
         run: npm run test
       - name: Build
         run: npm run build
+      - name: Package dist.zip for a manual itch.io upload
+        run: cd dist && zip -qr ../dist.zip . && cd .. && ls -l dist.zip
+      - name: Upload dist.zip
+        uses: actions/upload-artifact@v4
+        with:
+          name: dist-zip
+          path: dist.zip
       - name: Setup Pages
         uses: actions/configure-pages@45bfe0192ca1faeb007ade9deae92b16b8254a0d # v6
       - name: Upload artifact

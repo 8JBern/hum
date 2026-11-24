@@ -11,6 +11,7 @@ export class Bot {
   lastZ = 0;
   stuckFrames = 0;
   log: string[] = [];
+  targetFrames = 0;
 
   tick(g: Game): void {
     const run = g.run;
@@ -60,6 +61,7 @@ export class Bot {
       }
       if (!best) return;
       this.target = best;
+      this.targetFrames = 0;
       this.path = world.path(p.x, p.z, best.x, best.z, 8000) ?? [];
       if (!this.path.length && bd > 4) {
         this.failed.add(best.uid);
@@ -68,6 +70,13 @@ export class Bot {
       }
     }
     const a = this.target;
+    if (++this.targetFrames > 1200) {
+      this.failed.add(a.uid);
+      this.log.push(`${a.type}:timeout`);
+      this.target = null;
+      this.targetFrames = 0;
+      return;
+    }
     const d = Math.hypot(a.x - p.x, a.z - p.z);
     const clear = world.segmentClear(p.x, p.eye, p.z, a.x, a.y, a.z);
     if ((d < 3.2 && clear && d > 1.0) || this.aimFrames > 0) {
