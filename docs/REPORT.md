@@ -51,7 +51,7 @@ Stretch: P2-01, 02, 03, 04, 06, 07, 08 and 09 done; P2-05 Level C not built. Ful
 - `npm run test:deployed`: passes in the workflow `smoke` job (this container cannot reach github.io).
 - Screenshots: `artifacts/screenshots/01-title.png` to `11-archive.png` as required, plus `12-last-tape.png` and `13-pause-clock.png`.
 - Video: `artifacts/video/bot-tour.webm` (bot on seed 1234 photographs five anomalies and reaches Level B).
-- Last workflow run: RUN_ID (build, deploy and smoke all green). WebGL in CI and tests: ANGLE SwiftShader.
+- Last workflow run: 45493145657 for the final code commit (build, deploy and smoke all green); the report-only commit after it deploys the same build. WebGL in CI and tests: ANGLE SwiftShader.
 
 ## 4. Wow features shipped
 
@@ -105,5 +105,5 @@ All decisions: `docs/DECISIONS.md`.
 - M0: placeholder live by 06:30 (run 45481393184).
 - M1, M2 and M3: 07:03 (run 45487246682); CI smoke job 07:05 (run 45487542760).
 - M4: 07:19 (run 45489978037, smoke green).
-- M5 freeze: 07:27. End: 07:45.
+- M5 freeze: 07:27; final deploy and smoke green 07:41 (run 45493145657). End: 07:45.
 - Usage-limit waits: none.
