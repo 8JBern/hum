@@ -26,6 +26,7 @@ export class Input {
     window.addEventListener('blur', () => {
       this.keys.clear();
       this.rmb = false;
+      this.resetTouch();
     });
     el.addEventListener('mousedown', (e) => {
       if (e.button === 2) this.rmb = true;
@@ -45,6 +46,13 @@ export class Input {
       this.locked = document.pointerLockElement === this.el;
       if (was && !this.locked) this.onUnlock();
     });
+  }
+
+  /** Drop touch stick and camcorder toggle state (new run, title, blur). */
+  resetTouch(): void {
+    this.touchMove = null;
+    this.touchRaise = false;
+    document.querySelectorAll('#touch button.on').forEach((b) => b.classList.remove('on'));
   }
 
   lock(): void {

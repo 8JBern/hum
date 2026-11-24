@@ -60,7 +60,7 @@ export function installTouch(input: Input, root: HTMLElement): void {
           const dy = Math.max(-1, Math.min(1, (t.clientY - my) / 50));
           input.touchMove = { forward: -dy, strafe: dx };
           knob.style.transform = `translate(${dx * 36}px, ${dy * 36}px)`;
-        } else if (t.identifier === lookId) {
+        } else if (t.identifier === lookId && document.body.dataset.mode === 'play') {
           input.mouseDX += (t.clientX - lx) * 1.6;
           input.mouseDY += (t.clientY - ly) * 1.6;
           lx = t.clientX;

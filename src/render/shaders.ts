@@ -170,7 +170,7 @@ void main() {
   if (uCaustic > 0.0 && vW.y > 0.32) {
     float k = caustic(vW.xz * 0.9 + vW.y * 0.2, uTime * 0.6);
     float w = smoothstep(0.32, 1.0, vW.y) * (0.5 + 0.5 * max(-n.y, 0.0));
-    col += vec3(0.55, 0.85, 0.9) * k * uCaustic * w * 0.12;
+    col += vec3(0.55, 0.85, 0.9) * k * uCaustic * w * 0.06;
   }
   col = applyFog(col, vW);
 #ifdef DECAL
@@ -281,13 +281,13 @@ void main() {
     ivec2 cell = ivec2(floor(g + 0.5));
     float lv = panelLevel(cell) * occDim(vec2(cell) * 4.0 + 1.0);
     float spot = (1.0 - smoothstep(0.25, 0.75, max(f.x * 0.5, f.y))) * lv;
-    refl = panelTint(vec2(cell) * 4.0 + 1.0) * spot * 3.0 + vec3(0.5, 0.6, 0.62) * 0.18;
+    refl = panelTint(vec2(cell) * 4.0 + 1.0) * spot * 2.0 + vec3(0.42, 0.56, 0.6) * 0.2;
   }
   vec3 lit = lighting(vW, vec3(0.0, 1.0, 0.0));
-  vec3 base = vec3(0.32, 0.55, 0.58) * lit * 0.35;
+  vec3 base = vec3(0.26, 0.5, 0.54) * lit * 0.5;
   vec3 col = mix(base, refl, fres);
   col = applyFog(col, vW);
-  gl_FragColor = vec4(col, 0.42 + fres * 0.45);
+  gl_FragColor = vec4(col, 0.55 + fres * 0.4);
 }
 `;
 

@@ -115,23 +115,24 @@ test('3 run: move, raise, photograph a forced anomaly, evidence increases', asyn
   for (let i = 0; i < 6; i++) await H(page, 'step', 100);
   await H(page, 'setInput', null);
   const moved = await H<State>(page, 'getState');
-  // Back to spawn, force an anomaly in the spawn room and photograph it.
+  // Back to spawn: the chair on the ceiling waits a few metres ahead. Raise the camcorder and photograph it.
   await H(page, 'startRun', { seed: 1234, noOccupant: true });
-  const inst = await H<{ x: number; y: number; z: number; type: string } | null>(page, 'forceAnomaly', 'crt-message');
-  expect(inst).not.toBeNull();
   const s0 = await H<State>(page, 'getState');
-  // Stand 2.5 m from it, facing it.
-  const dx = s0.player.x - inst!.x;
-  const dz = s0.player.z - inst!.z;
+  const inst = s0.anomalies.find((a) => a.type === 'chair-ceiling')!;
+  expect(inst).toBeTruthy();
+  const dx = s0.player.x - inst.x;
+  const dz = s0.player.z - inst.z;
   const l = Math.hypot(dx, dz) || 1;
-  await H(page, 'teleport', inst!.x + (dx / l) * 2.5, inst!.z + (dz / l) * 2.5);
-  await H(page, 'aimAt', inst!.x, inst!.y, inst!.z);
+  await H(page, 'teleport', inst.x + (dx / l) * 3.2, inst.z + (dz / l) * 3.2);
+  await H(page, 'aimAt', inst.x, 1.7, inst.z);
   await H(page, 'raiseCamera', true);
-  await H(page, 'step', 40);
+  await H(page, 'step', 150);
   await page.screenshot({ path: `${SHOTS}/04-camcorder.png` });
+  await H(page, 'aimAt', inst.x, inst.y, inst.z);
+  await H(page, 'step', 30);
   const before = (await H<State>(page, 'getState')).evidence;
   const r = await H<{ ok: boolean; name: string }>(page, 'snapPhoto');
-  await H(page, 'step', 14);
+  await H(page, 'step', 40);
   await page.screenshot({ path: `${SHOTS}/05-anomaly.png` });
   const after = (await H<State>(page, 'getState')).evidence;
   expect(Math.hypot(moved.player.x - s0.player.x, moved.player.z - s0.player.z)).toBeGreaterThan(0.5);
@@ -249,6 +250,22 @@ test('P2-07 touch: first touch shows the controls and the left stick moves the p
   const s1 = await H<State>(page, 'getState');
   expect(Math.hypot(s1.player.x - s0.player.x, s1.player.z - s0.player.z)).toBeGreaterThan(0.5);
   await fire('touchend', 200, 340);
+  expect(b.errors).toEqual([]);
+});
+
+test('P1-10 time on the clock in pause, and the 90-minute sticky note', async ({ page }) => {
+  const b = await boot(page);
+  await H(page, 'startRun', { seed: 1234, noOccupant: true });
+  await H(page, 'pressKey', 'Escape');
+  await expect(page.locator('[data-clock]')).toContainText(/You have been here for \d\d:\d\d:\d\d/);
+  await page.screenshot({ path: `${SHOTS}/13-pause-clock.png` });
+  await page.locator('[data-a=resume]').click();
+  expect(await H(page, 'mode')).toBe('play');
+  await H(page, 'setPlaySeconds', 90 * 60 + 1);
+  await H(page, 'setInput', { forward: 0, yawRate: 0 });
+  await H(page, 'step', 30);
+  const s = await H<State & { noteShown: boolean }>(page, 'getState');
+  expect(s.noteShown).toBe(true);
   expect(b.errors).toEqual([]);
 });
 

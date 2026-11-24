@@ -132,6 +132,9 @@ button:disabled {
 #hud {
   display: none;
   pointer-events: none;
+  text-shadow:
+    0 0 3px #000,
+    0 1px 2px #000;
 }
 #hud.on {
   display: block;
@@ -253,8 +256,10 @@ button:disabled {
   left: 22px;
   bottom: 18px;
   font-size: 14px;
-  color: rgba(233, 228, 210, 0.75);
-  text-shadow: 0 0 4px #000;
+  color: rgba(240, 236, 220, 0.92);
+  text-shadow:
+    0 0 3px #000,
+    0 0 6px rgba(0, 0, 0, 0.8);
   line-height: 1.6;
 }
 .reticle {

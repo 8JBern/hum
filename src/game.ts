@@ -236,6 +236,7 @@ export class Game {
     this.mode = 'title';
     this.modeT = 0;
     this.ui.hudOn(false);
+    this.input.resetTouch();
     this.disposeWorld();
     this.input.unlock();
     this.setupOffice(this.save.escapes > 0);
@@ -307,7 +308,7 @@ export class Game {
     this.mode = 'intro';
     this.modeT = 0;
     this.setupOffice(false);
-    this.ui.intro(this.save.seenIntro);
+    this.ui.intro(true);
     this.ui.show('intro');
     this.pendingStart = o;
   }
@@ -316,6 +317,7 @@ export class Game {
   // ---------- Runs ----------
   startRun(o: StartOptions = {}): void {
     const t0 = performance.now();
+    this.input.resetTouch();
     this.disposeWorld();
     const daily = !!o.daily;
     const seed = o.seed !== undefined ? normaliseSeed(o.seed) : daily ? dailySeed(new Date()) : this.seedOverride ?? normaliseSeed(hashString(`run-${Date.now()}-${this.save.runs}`));
@@ -454,6 +456,8 @@ export class Game {
     this.afterReplay = () => this.closeOldTape();
     this.mode = 'replay';
     this.modeT = 0;
+    this.input.unlock();
+    this.input.resetTouch();
     this.placeCctv();
     this.ui.hudOn(false);
     this.ui.replay('YOUR LAST TAPE', { skip: () => this.endReplay(), tape: null });
@@ -471,7 +475,11 @@ export class Game {
     this.scene.add(this.standIn, this.occMesh);
     this.standIn.visible = false;
     this.tapeView = null;
+    this.replayLabel = '';
+    this.replayFrames = [];
+    this.replayT = 0;
     this.mode = 'play';
+    if (!this.testMode) this.input.lock();
     this.modeT = 0;
     this.ui.show(null);
     this.ui.hudOn(true);
@@ -557,7 +565,7 @@ export class Game {
   // ---------- Input ----------
   private onKey(code: string): void {
     audio.unlock();
-    if (this.mode === 'intro' && this.save.seenIntro && this.modeT > 0.3) {
+    if (this.mode === 'intro' && this.modeT > (this.save.seenIntro ? 0.3 : 1.5)) {
       this.finishIntro();
       return;
     }
@@ -1281,7 +1289,7 @@ export class Game {
   rearrange(): boolean {
     const run = this.run;
     const world = this.world;
-    if (!run || !world || (this.mode !== 'play' && this.mode !== 'pause')) return false;
+    if (!run || !world || this.tapeView || (this.mode !== 'play' && this.mode !== 'pause')) return false;
     if (this.occupant?.active && this.occupant.dist < 14) return false;
     const pcx = Math.floor(this.player.x / CHUNK_M);
     const pcz = Math.floor(this.player.z / CHUNK_M);
@@ -1343,7 +1351,7 @@ export class Game {
     const d = new Date(this.now());
     shared.uClock.value = d.getHours() * 3600 + d.getMinutes() * 60 + d.getSeconds() + d.getMilliseconds() / 1000;
     tape.u('uTime').value = this.simTime;
-    tape.u('uFlash').value = this.flash;
+    tape.u('uFlash').value = this.pendingThumbs.length ? 0 : this.flash;
     tape.u('uFilter').value = this.save.filter;
     let scene: THREE.Scene = this.scene;
     let cam: THREE.Camera = this.camera;
@@ -1672,6 +1680,9 @@ export class Game {
       forceAnomaly(typeId: string) {
         return g.forceAnomaly(typeId);
       },
+      setPlaySeconds(n: number) {
+        g.playSeconds = n;
+      },
       killPlayer() {
         g.die('Caught by the Occupant.');
       },
@@ -1767,6 +1778,7 @@ export class Game {
       banked: this.save.banked,
       replayFrames: this.replayFrames.length,
       replayLabel: this.mode === 'replay' ? this.replayLabel : '',
+      noteShown: run?.noteShown ?? false,
       oldTape: run?.oldTape && run.oldTape.key ? { x: run.oldTape.x, z: run.oldTape.z, taken: run.taken.has('tape') } : null,
     };
   }
