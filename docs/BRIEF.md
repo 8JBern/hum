@@ -16,7 +16,7 @@ Done means all of the following, each proven with command output in the transcri
 2. `npm run test` (Vitest unit tests) exits 0.
 3. `npm run test:e2e` (Playwright against the local preview build) exits 0 and writes the artefacts listed in section 9.
 4. The GitHub Actions Pages workflow for the latest commit on `main` concluded `success`.
-5. `npm run test:deployed` passes against `https://{{GH_USER}}.github.io/{{REPO}}/`.
+5. `npm run test:deployed` passes against `https://8jbern.github.io/hum/`.
 6. Every **P0** and **P1** item in `docs/ACCEPTANCE.md` is ticked with an evidence pointer, or the item is listed in `docs/REPORT.md` as unfinished with the reason.
 7. `docs/REPORT.md` exists in the format in section 11, and is committed and pushed.
 8. The `fresh-eyes` subagent's final review lists no Blocker findings, or each Blocker was fixed and re-verified.
@@ -35,9 +35,9 @@ Barry has explicitly approved the actions below for this project, for the whole 
 2. Add packages from `registry.npmjs.org` to this project's `package.json` and install them with `npm install`. Use `npx` for project-local tooling.
 3. Install the Playwright Chromium browser binary with `npx playwright install chromium` (user cache only, no `--with-deps`, no sudo). Barry has already installed the system libraries.
 4. Run local dev and preview servers on `localhost` and drive them with headless Chromium.
-5. Commit to git as often as useful. Push non-force commits to `main` of `github.com/{{GH_USER}}/{{REPO}}`. A push to `main` triggers the repository's own GitHub Actions workflow, which deploys the static build to GitHub Pages. **This deploy is explicitly approved by the owner. It is a hobby static site, not production infrastructure.**
+5. Commit to git as often as useful. Push non-force commits to `main` of `github.com/8JBern/hum`. A push to `main` triggers the repository's own GitHub Actions workflow, which deploys the static build to GitHub Pages. **This deploy is explicitly approved by the owner. It is a hobby static site, not production infrastructure.**
 6. Create and edit the GitHub Actions workflow under `.github/workflows/`. Use `gh run list`, `gh run view`, `gh run watch` and `gh run rerun` for this repository.
-7. Make read-only HTTP requests and run headless browser tests against `https://{{GH_USER}}.github.io/{{REPO}}/`.
+7. Make read-only HTTP requests and run headless browser tests against `https://8jbern.github.io/hum/`.
 8. Use web search and web fetch to read current documentation for the libraries you use.
 9. Spawn subagents, including the project's `fresh-eyes` reviewer.
 
@@ -104,7 +104,7 @@ If a milestone overruns by more than 30 minutes, cut scope using the tiers in se
 - **Persistence:** `localStorage`, wrapped in try/catch, with a versioned schema.
 - **Simulation:** fixed timestep at 60 Hz, decoupled from rendering, so tests can step frames deterministically.
 - **Randomness:** one seeded PRNG module (for example sfc32 or mulberry32). Never call `Math.random()` in gameplay code.
-- **Deploy:** GitHub Pages via GitHub Actions on push to `main`. Set Vite `base` to `/{{REPO}}/`.
+- **Deploy:** GitHub Pages via GitHub Actions on push to `main`. Set Vite `base` to `/hum/`.
 
 ### 4.1 Repository layout
 
@@ -342,7 +342,7 @@ At every gate, view your screenshots and answer in `docs/PROGRESS.md`: Does this
 
 ### 9.3 Deployed smoke test
 
-`npm run test:deployed` runs tests 1 and 2 plus a short run start against `https://{{GH_USER}}.github.io/{{REPO}}/`.
+`npm run test:deployed` runs tests 1 and 2 plus a short run start against `https://8jbern.github.io/hum/`.
 
 ### 9.4 Independent review
 
